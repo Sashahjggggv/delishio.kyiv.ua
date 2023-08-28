@@ -1,0 +1,425 @@
+$(document).ready(function() {
+  "use strict";
+
+    var ajaxurl = '/wp-admin/admin-ajax.php';
+
+  	$(document).on('click','.ingredient', function() {
+  		var mod_calories 	= parseInt($(this).closest('.ing-custom-block').find('.info-main .info-head b').text());
+  		var mod_proteins 	= parseInt($(this).closest('.ing-custom-block').find('.info-main .info-body .mod_proteins b').text());
+  		var mod_fat 		  = parseInt($(this).closest('.ing-custom-block').find('.info-main .info-body .mod_fat b').text());
+  		var mod_sarbohydrates = parseInt($(this).closest('.ing-custom-block').find('.info-main .info-body .mod_sarbohydrates b').text());
+
+  		var main_calories 	= parseInt($('.ing-product_desc').find('.info-head b').text());
+  		var main_proteins 	= parseInt($('.ing-product_desc').find('.main_proteins b').text());
+  		var main_fat 		    = parseInt($('.ing-product_desc').find('.main_fat b').text());
+  		var main_sarbohydrates = parseInt($('.ing-product_desc').find('.main_sarbohydrates b').text());
+
+      var main_qty = $('.ing_footer-controls .product-qty').val();
+
+
+  		if($(this).hasClass('active')){
+  			$('.ing-product_desc').find('.info-head b').text(main_calories+(mod_calories*main_qty));
+	  		$('.ing-product_desc').find('.main_proteins b').text(main_proteins+(mod_proteins*main_qty));
+	  		$('.ing-product_desc').find('.main_fat b').text(main_fat+(mod_fat*main_qty));
+	  		$('.ing-product_desc').find('.main_sarbohydrates b').text(main_sarbohydrates+(mod_sarbohydrates*main_qty));
+  		} else{
+	  		$('.ing-product_desc').find('.info-head b').text(main_calories-(mod_calories*main_qty));
+	  		$('.ing-product_desc').find('.main_proteins b').text(main_proteins-(mod_proteins*main_qty));
+	  		$('.ing-product_desc').find('.main_fat b').text(main_fat-(mod_fat*main_qty));
+	  		$('.ing-product_desc').find('.main_sarbohydrates b').text(main_sarbohydrates-(mod_sarbohydrates*main_qty));
+  		}
+  	});
+
+
+  	// close 
+  	$(document).on('click', '#ing_body .ing_control .btn-close', function() {
+  		var main_calories 	= parseInt($('.ing-product_desc').find('.info-head b').text());
+  		var main_proteins 	= parseInt($('.ing-product_desc').find('.main_proteins b').text());
+  		var main_fat 		= parseInt($('.ing-product_desc').find('.main_fat b').text());
+  		var main_sarbohydrates = parseInt($('.ing-product_desc').find('.main_sarbohydrates b').text());
+
+  		var mod_counter 	= parseInt($(this).closest('.ing_control').find('.product-qty').val());
+  		var mod_calories 	= parseInt($(this).closest('.ing_control').attr('data-calories'));
+  		var mod_proteins 	= parseInt($(this).closest('.ing_control').attr('data-proteins'));
+  		var mod_fat 		= parseInt($(this).closest('.ing_control').attr('data-fat'));
+  		var mod_sarbohydrates = parseInt($(this).closest('.ing_control').attr('data-sarbohydrates'));
+
+      var main_qty = $('.ing_footer-controls .product-qty').val();
+
+  		$('.ing-product_desc').find('.info-head b').text(main_calories-((mod_calories*mod_counter)*main_qty));
+  		$('.ing-product_desc').find('.main_proteins b').text(main_proteins-((mod_proteins*mod_counter)*main_qty));
+  		$('.ing-product_desc').find('.main_fat b').text(main_fat-((mod_fat*mod_counter)*main_qty));
+  		$('.ing-product_desc').find('.main_sarbohydrates b').text(main_sarbohydrates-((mod_sarbohydrates*mod_counter)*main_qty));
+  	});	
+    
+
+    // clear all product cart
+    $(document).on('click', '.cart-delete-all', function() {
+        $('.cart_items').addClass('is-loader');
+
+        $.post(ajaxurl, {
+            action:'delete_all_product',
+            //nonce:psshop_vars.ajax_nonce
+
+        })
+        .done(function (response) {
+            var res = JSON.parse(response);
+            $('.cart_items').removeClass('is-loader');
+            console.log(res);
+            if (res.success ) {
+                $('.open-cart').addClass('icon_cart');
+                $('.open-cart').removeClass('icon_cart_active');
+                $('.prod_horiz').remove();
+                // $('.cart-delete-all').remove();
+                $('.basket .basket-block p').text(0);
+                $('.basket .cart-count').text(0);
+                $('.card-total-price').text(0);
+                setTimeout(function () {
+                    $('.cart').removeClass('active');
+                    $('html').css('position','relative');
+                }, 1500);
+                
+            } else {
+                showMessage(response);
+            }
+        })
+        .fail(function (jqXHR, textStatus, error) {
+            showMessage(textStatus, true);
+        });
+    }); 
+
+
+    $(document).on('click', '.cv-form .wpcf7-submit', function() {
+        var telInput   = $('.popup-form .inputmask').val();
+        var current_vacanices = $('.name_vacanices').text();
+        $('input[name="tel_number"]').val(telInput);
+        $('input[name="text_vacancies"]').val(current_vacanices);
+        
+
+    });
+
+    $(document).on('click', '.contact-map-block .wpcf7-submit', function() {
+        var telInput   = $('.popup-form .inputmask').val();
+        $('input[name="tel_number"]').val(telInput);
+    });
+
+
+    $(document).on('click', '.respons-popup .wpcf7-submit', function() {
+        var telInput   = $('.popup-form .inputmask').val();
+        var address = $(".respons-info select option:selected").val();
+        $('input[name="tel_number"]').val(telInput);
+        $('input[name="address"]').val(address);
+
+        var counter_liked = 0;
+        $('.select-love .icon-love').each(function(index, value){
+            counter_liked++;
+        });
+        $('input[name="liked"]').val(counter_liked);
+
+      
+    });
+    
+    $(document).on('click', '.cart-dropdown-delete', function() {
+        $('.cart_items').addClass('is-loader');
+        var that = $(this);
+        var product_key = $(this).closest('.cart-product').attr('data-key');
+        var product_id = $(this).closest('.cart-product').attr('data-id');
+        var modificator_id = $(this).attr('data-mod-id');
+
+        $.post(ajaxurl, {
+            action: 'delete_modificator',
+            'product_key': product_key,
+            'product_id': product_id,
+            'modificator_id': modificator_id,
+        })
+        .done(function (response) {
+            var res = JSON.parse(response);
+            $('.cart_items').removeClass('is-loader');
+            that.closest('span').remove();
+            console.log(res);
+            if (res.success) {
+                $('.cart-product[data-key="'+product_key+'"] .price-wrap .price').text(res.line_total);
+                $('.cart-product[data-key="'+product_key+'"] .price_default b').text(res.product_price);
+                $('#card-total-price').text(res.total);
+                $('.basket .basket-block p').text(res.total);
+                $('.all-product-price-el').text(res.total);
+                $('.all-product-price-el').attr('data-total',res.total);
+            } else {
+                showMessage(response);
+            }
+        })
+        .fail(function (jqXHR, textStatus, error) {
+            showMessage(textStatus, true);
+        });
+    });
+
+
+    $('input[name="without_things"]').on('change', function() {
+      
+      if($(this).is(':checked')) { 
+          $('.js-checkout-product').slideUp();
+          $('.js-checkout-product.things').find('input').val(0);
+      } else{
+          $('.js-checkout-product').slideDown();
+          $('.js-checkout-product.things').find('input').val(1);
+      }
+    });
+
+
+    var setCookie = function(name, value, expires) {
+        var d = new Date();
+        d.setTime(d.getTime() + expires * 24 * 60 * 60 * 1000);
+        document.cookie = name + "=" + value + ";expires=" + d.toUTCString() + ";path=/";
+        return getCookie(name);
+    };
+
+    var getCookie = function(name) {
+        var ca = decodeURIComponent(document.cookie).split(";");
+        name += "=";
+        for (var i = 0; i < ca.length; i++) {
+            var c = ca[i];
+            while (c.charAt(0) == " ") {
+                c = c.substring(1);
+            }
+            if (c.indexOf(name) === 0) {
+                return c.substring(name.length, c.length);
+            }
+        }
+    };
+    
+    console.log('qaz');
+    $(document).on( 'click', '.btn_delivery', function(e) {
+        e.preventDefault();
+        var type_delivery = $(this).attr('data-type-delivery');
+        setCookie( 'type_delivery', type_delivery, 1 );
+        // $(this).css('border','2px solid green');
+
+        $.post( ajaxurl, {
+            action        : 'change_type_delivery',
+            type_delivery : type_delivery
+        } )
+        .done( function( response ) {
+            location.reload();
+        } )
+        .fail( function ( jqXHR, textStatus, error ) {
+            location.reload();
+        } );
+    } );
+
+
+    if(typeof getCookie('type_delivery') !== 'undefined'){
+        var delivery_coockie = getCookie('type_delivery');
+        $('.header-informer_item.btn_delivery[data-type-delivery="'+ delivery_coockie +'"]').addClass('active');
+    }
+
+
+
+
+
+
+
+    document.addEventListener( 'wpcf7mailsent', function( event ) {
+        $('.popup-content').removeClass('active');
+        $('.thank-popup, .popup-wrapper').addClass('active');
+        _functions.removeScroll();
+    }, false );
+
+
+    function parseJson(str) {
+        var j;
+        try {
+            j=JSON.parse(str);
+        } catch (e) {
+            return false;
+        }
+        return j;
+    }
+
+    function showMessage(message){
+        $('#text-popup').find('.text').html(message);
+        _functions.openPopup('#text-popup');
+
+    }
+
+    $(document).on('change', '.checkbox-el .js-additions-checkbox', function() {
+        $('.cart_items').addClass('is-loader');
+        var $this          = $(this);
+        var status         = $this.is(':checked') ? 'checked' : 'unchecked';
+        var product_key    = $this.closest('.cart-product').data('key');
+        var modificator_id = $this.attr('data-modifier-id');
+
+        $.post(ajaxurl, {
+            action:'update_mini_cart_product',
+            'product_key': product_key,
+            'status': status,
+            'modificator_id': modificator_id,
+        })
+        .done(function (response) {
+          var res = JSON.parse(response);
+          $('.cart_items').removeClass('is-loader');
+          console.log(res);
+          if (res.success) {
+              $('.cart-product[data-key="'+product_key+'"] .price-wrap .price').text(res.line_total);
+              $('.cart-product[data-key="'+product_key+'"] .price_default b').text(res.product_price);
+              $('#card-total-price').text(res.total);
+              $('.basket .basket-block p').text(res.total);
+              if($('.all-product-price-el').length) {
+                $('.all-product-price-el').text(res.total);
+                $('.all-product-price-el').attr('data-total',res.total);
+              }
+          } else {
+              showMessage(response);
+          }
+        })
+        .fail(function (jqXHR, textStatus, error) {
+          showMessage(textStatus, true);
+        });
+    });
+
+      $(document).on('click','.add-to-cart-btn-requere', function() {
+        var btn = $(this),
+            id = btn.data('id'),
+            wrap = btn.closest('.obligatory-ing-popup'),
+            modifiers = '';
+
+        if(wrap.find('#ing_body .ingredient.active').length) {
+          var el = wrap.find('#ing_body .ingredient.active').attr('data-ing');
+          modifiers += (el + '|' + 1);
+          console.log(id,modifiers);
+        }
+
+        if(modifiers == ''){
+            return false;
+        }
+
+        $.post(ajaxurl, {
+            action:'update_cart_product',
+            id:id,
+            qty:1,
+            modifiers: modifiers
+        })
+            .done(function (response) {
+                var res = parseJson(response);
+                console.log(res);
+                if (res.success) {
+                  wrap.find('#ing_body .ingredient').removeClass('active');
+                  $('.open-cart').removeClass('icon_cart');
+                  $('.open-cart').addClass('icon_cart_active');
+                  var min_order_green = parseInt($('.basket .basket-info').attr('data-minprice-order'));
+                  if(res.total >= min_order_green){
+                      $('.basket .basket-info').addClass('no_active');
+                  }
+                  else{
+                      $('.basket .basket-info').removeClass('no_active');
+                      var total_cart = parseInt(res.total);
+                      $('.basket .basket-info b span').text(min_order_green-total_cart);
+                  }
+                  $('header .order').removeClass('empty').addClass('open-cart').find('.order-item span').text(res.count);
+                  $('header .order .price span').text(res.total);
+                  $('.basket .basket-block p').text(res.total);
+                  $('.basket .cart-count').text(res.count);
+                  if(res.redirect) location.href = res.redirect;
+                  wrap.find('.btn-close').trigger('click');
+                } else {
+                  showMessage(response);
+                }
+            })
+            .fail(function (jqXHR, textStatus, error) {
+                showMessage(textStatus, true);
+            });
+        return false;
+    });
+
+    function newSetCookie(name, value, options = {}) {
+
+      if (options.expires instanceof Date) {
+        options.expires = options.expires.toUTCString();
+      }
+
+      let updatedCookie = encodeURIComponent(name) + "=" + encodeURIComponent(value);
+
+      for (let optionKey in options) {
+        updatedCookie += "; " + optionKey;
+        let optionValue = options[optionKey];
+        if (optionValue !== true) {
+          updatedCookie += "=" + optionValue;
+        }
+      }
+
+      document.cookie = updatedCookie;
+    }
+
+    function deleteCookie(name) {
+      setCookie(name, "", {
+        'max-age': -1
+      })
+    }
+
+
+    let popupTop = 0;
+    function removeScroll() {
+        popupTop = $(window).scrollTop();
+        $('html').css({
+            "position": "fixed",
+            "top": -$(window).scrollTop(),
+            "width": "100%"
+        });
+    }
+
+    function openPopup(popup) {
+        $('.popup-content').removeClass('active');
+        $(popup + ', .popup-wrapper').addClass('active');
+        removeScroll();
+    };
+
+    if($('[data-rel="info-popup"]').length) {
+      if(typeof getCookie('type_delivery') !== 'undefined' && !( $('body').hasClass('page-template-page-checkout') || $('body').hasClass('page-template-delivery')  || $('body').hasClass('page-template-contact') || $('body').hasClass('page-template-page-account') ) ) {
+        if(typeof getCookie('info_popup') === 'undefined') {
+            openPopup('[data-rel="info-popup"]');
+            let date = new Date(Date.now() + (60 * 60 * 1000));
+            newSetCookie('info_popup', 'disable', {'path': '/','expires': date});
+        }
+      }
+    }
+
+
+
+    if($('[data-rel="checkout-info-popup"]').length) {
+
+        $('#houseNumber').blur(function(){
+            if($('#streetAutocomplete').val() != '' && $('#houseNumber').val() != '') { 
+                setTimeout(function(){
+                    showCheckoutPopup();
+                },1000);
+            }
+        });
+        function showCheckoutPopup(){
+            if($('.page-template-page-checkout .map-block').attr('data-current-zone-type') !== 'green') {
+                openPopup('[data-rel="checkout-info-popup"]');
+                $('.page-template-page-checkout .delivery-form .order-wrap button').attr('disabled', true);
+            } else {
+                $('.page-template-page-checkout .delivery-form .order-wrap button').removeAttr('disabled');
+            }
+        }
+    }
+
+    $('.obligatory-ing-popup .ing_row .ingredient').click(function(){
+      $(this).closest('.obligatory-ing-popup').find('button').removeAttr('disabled');
+
+    });
+
+    // add qte
+    // $('.thumb-input-number button').on('click', function(e){
+    //     var val = parseInt($('#things-count').val()),
+    //     valNew = '';
+    //     if($(this).hasClass('decrement')){
+    //         if(val != 1) $('#things-count').val(val -= 1);
+    //     }else if($(this).hasClass('increment')){
+    //         $('#things-count').val(val += 1);
+    //     }
+    //     valNew =  $('#things-count').val();
+    //     $('input[name="text-qte"]').val(valNew);
+    // });
+
+
+});

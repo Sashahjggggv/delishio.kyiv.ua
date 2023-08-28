@@ -1,0 +1,48 @@
+jQuery(function ($) {
+
+    'use strict';
+
+    let $filtersSelector = $('.filters-list li');
+
+    $($(this).attr('data-filter')).isotope({
+        itemSelector: $filtersSelector,
+        layoutMode: 'fitRows'
+    });
+
+    $filtersSelector.on('click', function () {
+        $('.isotop-row').isotope({
+            filter: $(this).attr('data-filter')
+        });
+    });
+
+
+    let $grid = $('.filters-row').isotope({
+      itemSelector: '.col-sm-6',
+      layoutMode: 'fitRows',
+      getSortData: {
+        price: function (itemElem) {
+          let price = $( itemElem ).find('.js-product').attr('data-price');
+          return parseInt(price);
+        },
+        weight: function (itemElem) {
+      		let weight = $( itemElem ).find('.js-product').attr('data-weight');
+          return parseInt(weight);
+        }
+      }
+    });
+
+    $('.choice').on('click', function () {
+      $(this).toggleClass('show');
+    });
+
+    $('.choice-wrap .choice-var').on('click', function (){
+      let sortValue = $(this).attr('data-sort');
+      let direction = $(this).attr('data-path');
+      
+      let isAscending = (direction == '1');
+    
+      $grid.isotope({ sortBy: sortValue, sortAscending: isAscending});
+    });
+
+    
+});

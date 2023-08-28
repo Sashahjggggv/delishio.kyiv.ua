@@ -1,0 +1,1024 @@
+let GeoLocation = {};
+
+jQuery(function($)  {
+    
+    "use strict";
+
+    var ajaxurl = '/wp-admin/admin-ajax.php',
+        otherMap = $('.checkout-section.other-map').length;
+
+
+    let markers = [], staticMarkers = [], streets = [],  map, myLatlng, marker, image, noDataBase, streetFromAutoComplete, checkAutocompleteSelect,
+    invisibleZone, greenZone, otherGreenZone, step1 = false, step2 = false, step3 = false;
+
+    let ibOptions = {
+            alignBottom: true,
+            content: 'text',
+            pixelOffset: new google.maps.Size(($(window).width() < 565) ? -150 : -163, -40),
+            boxStyle: {
+                width: ($(window).width() < 565) ? "300px" : "326px"
+            },
+            closeBoxMargin: "5px 5px 5px 5px",
+            closeBoxURL: document.location.origin+'/wp-content/themes/tomatina/img/icon-close2.png'
+        },
+        ib = new InfoBox(ibOptions);
+
+    // Create markers
+    function addMarker(location){
+        image = {
+            url: $('#map').attr('data-map-marker'),
+            // scaledSize : new google.maps.Size(43, 57),
+        };
+        marker = new google.maps.Marker({
+            position: location,
+            icon: image,
+        });
+
+        markers.push(marker);
+        marker.setMap(map);
+        map.panTo(location);
+    }
+
+    function addStaticMarker(location, map, string, image ) {
+        const staticMarker = new google.maps.Marker({
+            position: location,
+            map: map,
+            icon: image,
+        });
+        const content = '<div class="info-box">' + string + '</div>';
+        google.maps.event.addListener(staticMarker, 'click', function () {
+            ib.setContent(content);
+            ib.setPosition(location);
+            ib.open(map);
+        });
+
+        staticMarkers.push(staticMarker)
+    }
+
+    console.log('map');
+    // initialize map
+    function initialize() {
+        const $mapEL = $('#map');
+        let lat = $mapEL.attr("data-lat"),
+            lng = $mapEL.attr("data-lng"),
+            isAddressMap = $mapEL.hasClass('address-map');
+
+        myLatlng = new google.maps.LatLng(lat,lng);
+
+        let setZoom = parseInt($mapEL.attr("data-zoom"));
+
+        let styles = [{"featureType":"landscape.man_made","elementType":"geometry","stylers":[{"color":"#f7f1df"}]},{"featureType":"landscape.natural","elementType":"geometry","stylers":[{"color":"#d0e3b4"}]},{"featureType":"landscape.natural.terrain","elementType":"geometry","stylers":[{"visibility":"off"}]},{"featureType":"poi","elementType":"labels","stylers":[{"visibility":"off"}]},{"featureType":"poi.business","elementType":"all","stylers":[{"visibility":"off"}]},{"featureType":"poi.medical","elementType":"geometry","stylers":[{"color":"#fbd3da"}]},{"featureType":"poi.park","elementType":"geometry","stylers":[{"color":"#bde6ab"}]},{"featureType":"road","elementType":"geometry.stroke","stylers":[{"visibility":"off"}]},{"featureType":"road","elementType":"labels","stylers":[{"visibility":"off"}]},{"featureType":"road.highway","elementType":"geometry.fill","stylers":[{"color":"#ffe15f"}]},{"featureType":"road.highway","elementType":"geometry.stroke","stylers":[{"color":"#efd151"}]},{"featureType":"road.arterial","elementType":"geometry.fill","stylers":[{"color":"#ffffff"}]},{"featureType":"road.local","elementType":"geometry.fill","stylers":[{"color":"black"}]},{"featureType":"transit.station.airport","elementType":"geometry.fill","stylers":[{"color":"#cfb2db"}]},{"featureType":"water","elementType":"geometry","stylers":[{"color":"#a2daf2"}]}];
+        let styledMap = new google.maps.StyledMapType(styles,{name: "Styled Map"});
+
+        let mapOptions = {
+            zoom: setZoom,
+            zoomControl: true,
+            center: myLatlng,
+            mapTypeControlOptions: {
+                mapTypeIds: [google.maps.MapTypeId.ROADMAP, 'map_style']
+            },
+            fullscreenControl: false,
+            mapTypeControl: false,
+            streetViewControl: false
+        };
+
+        // Define the LatLng coordinates for the polygon's path.
+        const greenZonePath = [
+            {"lng": 23.940806, "lat": 49.8220274},
+            {"lng": 23.9496492, "lat": 49.8175696},
+            {"lng": 23.9574607, "lat": 49.8120035},
+            {"lng": 23.9637683, "lat": 49.8070738},
+            {"lng": 23.9685523, "lat": 49.804498},
+            {"lng": 23.9719626, "lat": 49.8011465},
+            {"lng": 23.9692365, "lat": 49.7950935},
+            {"lng": 23.9671872, "lat": 49.7921224},
+            {"lng": 23.9665918, "lat": 49.7905537},
+            {"lng": 23.9651382, "lat": 49.7895945},
+            {"lng": 23.9629176, "lat": 49.7896569},
+            {"lng": 23.9603536, "lat": 49.7902734},
+            {"lng": 23.9571997, "lat": 49.7910075},
+            {"lng": 23.9511598, "lat": 49.7926495},
+            {"lng": 23.9479251, "lat": 49.7931656},
+            {"lng": 23.9444329, "lat": 49.7935154},
+            {"lng": 23.9420777, "lat": 49.7929508},
+            {"lng": 23.9410959, "lat": 49.7918875},
+            {"lng": 23.9383599, "lat": 49.7902595},
+            {"lng": 23.9394968, "lat": 49.7820718},
+            {"lng": 23.9422222, "lat": 49.7775686},
+            {"lng": 23.949904, "lat": 49.7671752},
+            {"lng": 23.9745374, "lat": 49.7593301},
+            {"lng": 23.9779003, "lat": 49.7605744},
+            {"lng": 23.9798041, "lat": 49.7625116},
+            {"lng": 23.984728, "lat": 49.7657204},
+            {"lng": 23.9883221, "lat": 49.7695387},
+            {"lng": 23.9951784, "lat": 49.7715829},
+            {"lng": 24.0022608, "lat": 49.7701687},
+            {"lng": 24.0095674, "lat": 49.7694903},
+            {"lng": 24.0170455, "lat": 49.7689778},
+            {"lng": 24.0321727, "lat": 49.7679513},
+            {"lng": 24.0321299, "lat": 49.7728981},
+            {"lng": 24.030842, "lat": 49.7770688},
+            {"lng": 24.0324082, "lat": 49.779757},
+            {"lng": 24.0348329, "lat": 49.7820572},
+            {"lng": 24.0395113, "lat": 49.7866021},
+            {"lng": 24.0429662, "lat": 49.7876342},
+            {"lng": 24.0471936, "lat": 49.7873363},
+            {"lng": 24.04773, "lat": 49.7835193},
+            {"lng": 24.0468931, "lat": 49.7797024},
+            {"lng": 24.0486951, "lat": 49.7793422},
+            {"lng": 24.0555187, "lat": 49.7807555},
+            {"lng": 24.0584156, "lat": 49.7811989},
+            {"lng": 24.060497, "lat": 49.7802291},
+            {"lng": 24.0649171, "lat": 49.7803122},
+            {"lng": 24.0674813, "lat": 49.7810049},
+            {"lng": 24.0689297, "lat": 49.7819194},
+            {"lng": 24.0713116, "lat": 49.7833049},
+            {"lng": 24.0721912, "lat": 49.7851891},
+            {"lng": 24.0765901, "lat": 49.7853553},
+            {"lng": 24.0753456, "lat": 49.7872117},
+            {"lng": 24.0747019, "lat": 49.7892343},
+            {"lng": 24.074144, "lat": 49.7913399},
+            {"lng": 24.0745302, "lat": 49.7933347},
+            {"lng": 24.0733287, "lat": 49.7958279},
+            {"lng": 24.0714403, "lat": 49.7983211},
+            {"lng": 24.0675352, "lat": 49.8002878},
+            {"lng": 24.063973, "lat": 49.8034178},
+            {"lng": 24.0618703, "lat": 49.806686},
+            {"lng": 24.0613123, "lat": 49.8092895},
+            {"lng": 24.0579005, "lat": 49.8104388},
+            {"lng": 24.0524075, "lat": 49.8110759},
+            {"lng": 24.0461202, "lat": 49.8118373},
+            {"lng": 24.0456052, "lat": 49.8159911},
+            {"lng": 24.0449616, "lat": 49.8171784},
+            {"lng": 24.0440819, "lat": 49.8181164},
+            {"lng": 24.0421507, "lat": 49.8188986},
+            {"lng": 24.0405413, "lat": 49.8197016},
+            {"lng": 24.0374517, "lat": 49.824917},
+            {"lng": 24.0366363, "lat": 49.8260625},
+            {"lng": 24.034104, "lat": 49.8284365},
+            {"lng": 24.0321038, "lat": 49.8292359},
+            {"lng": 24.0301894, "lat": 49.8298277},
+            {"lng": 24.0260173, "lat": 49.8305682},
+            {"lng": 24.0250973, "lat": 49.8313571},
+            {"lng": 24.0275488, "lat": 49.8329626},
+            {"lng": 24.0264436, "lat": 49.8340699},
+            {"lng": 24.0202637, "lat": 49.8346096},
+            {"lng": 24.0084891, "lat": 49.8387446},
+            {"lng": 24.005029, "lat": 49.8373156},
+            {"lng": 24.0025612, "lat": 49.837004},
+            {"lng": 23.9982916, "lat": 49.8406989},
+            {"lng": 23.9912744, "lat": 49.8459434},
+            {"lng": 23.9886995, "lat": 49.8492641},
+            {"lng": 23.9777132, "lat": 49.8538021},
+            {"lng": 23.9666836, "lat": 49.8522393},
+            {"lng": 23.9559122, "lat": 49.8504817},
+            {"lng": 23.9515119, "lat": 49.85101},
+            {"lng": 23.9499443, "lat": 49.8473598},
+            {"lng": 23.9527754, "lat": 49.8470995},
+            {"lng": 23.9541909, "lat": 49.8468586},
+            {"lng": 23.9556494, "lat": 49.8468667},
+            {"lng": 23.956674, "lat": 49.8451336},
+            {"lng": 23.9563628, "lat": 49.843632},
+            {"lng": 23.9562555, "lat": 49.8358691},
+            {"lng": 23.9155718, "lat": 49.836395},
+            {"lng": 23.914413, "lat": 49.8209199},
+            {"lng": 23.9175243, "lat": 49.8173764},
+            {"lng": 23.9288213, "lat": 49.8200347},
+            {"lng": 23.940806, "lat": 49.8220274}
+        ];
+
+        const invisibleZonePath = [
+            { lng:24.059494481125135, lat:49.841726665503366},
+            { lng:24.059185447963184, lat:49.844406728030485},
+            { lng:24.058262111076182, lat:49.84702706442949},
+            { lng:24.056745004103302, lat:49.84952912651609},
+            { lng:24.054667941660117, lat:49.85185700007517},
+            { lng:24.05207727065582, lat:49.853958655870485},
+            { lng:24.049030839545004, lat:49.855787114414184},
+            { lng:24.0455967081311, lat:49.85730149825302},
+            { lng:24.041851626558547, lat:49.85846794801215},
+            { lng:24.03787931752791, lat:49.859260381474655},
+            { lng:24.0337686004003, lat:49.85966107849796},
+            { lng:24.029611399599695, lat:49.85966107849796},
+            { lng:24.02550068247209, lat:49.859260381474655},
+            { lng:24.021528373441445, lat:49.858467948012155},
+            { lng:24.0177832918689, lat:49.85730149825302},
+            { lng:24.014349160454994, lat:49.855787114414184},
+            { lng:24.01130272934418, lat:49.853958655870485},
+            { lng:24.00871205833988, lat:49.85185700007517},
+            { lng:24.006634995896693, lat:49.84952912651609},
+            { lng:24.005117888923813, lat:49.847027064429504},
+            { lng:24.004194552036815, lat:49.844406728030485},
+            { lng:24.00388551887486, lat:49.84172666550338},
+            { lng:24.004197591611817, lat:49.83904674987286},
+            { lng:24.005123697994378, lat:49.83642684111122},
+            { lng:24.006643058301645, lat:49.83392544940536},
+            { lng:24.008721657699393, lat:49.83159842940412},
+            { lng:24.011313012713206, lat:49.82949773450142},
+            { lng:24.014359214111114, lat:49.82767025880562},
+            { lng:24.01779222250053, lat:49.82615679243959},
+            { lng:24.021535387522565, lat:49.824991113256665},
+            { lng:24.02550515677055, lat:49.824199235004684},
+            { lng:24.029612936554262, lat:49.82379882849327},
+           { lng:24.033767063445733, lat:49.82379882849327},
+            { lng:24.03787484322945, lat:49.824199235004684},
+            { lng:24.041844612477437, lat:49.824991113256665},
+            { lng:24.04558777749947, lat:49.82615679243959},
+            { lng:24.049020785888885, lat:49.82767025880562},
+            { lng:24.05206698728679, lat:49.82949773450142},
+            { lng:24.054658342300606, lat:49.83159842940412},
+            { lng:24.056736941698354, lat:49.83392544940536},
+            { lng:24.058256302005617, lat:49.83642684111122},
+            { lng:24.059182408388182, lat:49.83904674987286},
+            { lng:24.059494481125135, lat:49.841726665503366}
+          ];
+
+        //other map
+        const otherGreenZonePath = [
+                {lng:24.008908, lat:49.8519991},
+                {lng:24.0059897, lat:49.8466861},
+                {lng:24.004742, lat:49.8457864},
+                {lng:24.0038593, lat:49.8370617},
+                {lng:24.0053415, lat:49.8355152},
+                {lng:24.0073172, lat:49.8348406},
+                {lng:24.0162894, lat:49.8321554},
+                {lng:24.0217464, lat:49.8292325},
+                {lng:24.0255841, lat:49.8281472},
+                {lng:24.0322539, lat:49.8273385},
+                {lng:24.0366659, lat:49.8282736},
+                {lng:24.042022, lat:49.8277135},
+                {lng:24.0512823, lat:49.8280982},
+                {lng:24.0598444, lat:49.8404938},
+                {lng:24.0570223, lat:49.8420684},
+                {lng:24.0513079, lat:49.8433479},
+                {lng:24.0470523, lat:49.845153},
+                {lng:24.0423173, lat:49.8457902},
+                {lng:24.0403066, lat:49.8463249},
+                {lng:24.0361163, lat:49.8462433},
+                {lng:24.0322149, lat:49.8485374},
+                {lng:24.0331551, lat:49.8561218},
+                {lng:24.0283915, lat:49.8614614},
+                {lng:24.0269324, lat:49.8606314},
+                {lng:24.0214392, lat:49.8572008},
+                {lng:24.0140578, lat:49.8554301},
+                {lng:24.008908, lat:49.8519991}
+        ];
+
+        // Construct the map polygon.
+        greenZone = new google.maps.Polygon({
+             paths: greenZonePath,
+             strokeColor: '#00a300',
+             strokeOpacity: 0.7,
+             strokeWeight: 1,
+             fillColor: '#00b700',
+             fillOpacity: 0.3
+        });
+
+        invisibleZone = new google.maps.Polygon({
+            paths: invisibleZonePath,
+            strokeColor: 'blue',
+            strokeOpacity: 0,
+            strokeWeight: 1,
+            fillColor: 'blue',
+            fillOpacity: 0
+        });
+
+        otherGreenZone = new google.maps.Polygon({
+            paths: otherGreenZonePath,
+            strokeColor: '#00a300',
+            strokeOpacity: 0.7,
+            strokeWeight: 1,
+            fillColor: '#00b700',
+            fillOpacity: 0.3
+        });
+
+
+        // google Autocomplete options
+        let southWestLatLng = new google.maps.LatLng({lat: 49.7656834, lng: 23.8685913}),
+            northEastLatLng = new google.maps.LatLng({lat: 49.906071, lng: 24.166724}),
+
+            lvivAutocompleteBounds = new google.maps.LatLngBounds(southWestLatLng, northEastLatLng);
+
+
+        let options = {
+            types: ['geocode'],
+            componentRestrictions: {country: "ua"},
+            bounds: lvivAutocompleteBounds,
+            strictBounds: true
+        };
+      
+
+        if ( $('#deliveryStreet').length ) {  // delivery page autocomlete
+            let deliveryStreet = new google.maps.places.Autocomplete( // delivery page autocomlete
+                (document.getElementById('deliveryStreet')),
+                options
+            );
+
+            google.maps.event.addListener(deliveryStreet, 'place_changed', function() {
+                let place = deliveryStreet.getPlace(),
+                    newLocation;
+
+                if ( !place.geometry.location ) return false;
+
+                if ( markers.length ) {
+                    for( let i=0; i < markers.length; i++ ){
+                        markers[i].setMap(null);
+                    }
+                    map.panTo(myLatlng);
+                }
+
+                newLocation = new google.maps.LatLng(place.geometry.location.lat(), place.geometry.location.lng());
+                smoothZoomMap(map, 15);
+                addMarker(newLocation);
+            });
+        }
+
+        //Create map
+        map = new google.maps.Map(document.getElementById("map"), mapOptions);
+        map.mapTypes.set('map_style', styledMap);
+        map.setMapTypeId('map_style');
+
+        otherMap = $('.checkout-section.other-map').length;
+        
+        if(!otherMap){
+            greenZone.setMap(map);
+            invisibleZone.setMap(map);
+        }else{
+            invisibleZone.setMap(map);
+            otherGreenZone.setMap(map);
+        }
+
+        /* map.addListener('rightclick', function(e){
+            let lat = e.latLng.lat();
+            let lng = e.latLng.lng();
+            console.log(e.latLng.lat(), e.latLng.lng());
+        });*/
+
+        if(typeof AllStreets !== 'undefined') {
+            var user_city = '';
+            $.post(ajaxurl, {
+                action:'get_user_city',
+                //nonce:psshop_vars.ajax_nonce
+
+            })
+            .done(function (response) {
+                var res = JSON.parse(response);
+                //console.log(res);
+                user_city = res.city;
+                 if(user_city == ''){
+                    user_city = 'Львів';
+                }
+                var defaultAllStreets = AllStreets[user_city];
+                for (var i = 0; i < defaultAllStreets.length; i++) {
+                    streets.push(defaultAllStreets[i].name);
+                }
+                jQautocomplete(streets);
+
+            })
+            .fail(function (jqXHR, textStatus, error) {
+                showMessage(textStatus, true);
+            }); 
+        } else if ( $('#streetAutocomplete').length ) {
+            let autocomplete = new google.maps.places.Autocomplete(
+                (document.getElementById('streetAutocomplete')),
+                options
+            );
+
+            google.maps.event.addListener(autocomplete, 'place_changed', function() {
+                $('#houseNumber').val('');
+                for( let i=0; i < markers.length; i++ ){ // Remove old marker
+                    markers[i].setMap(null);
+                }
+            });
+        }
+
+        $('.marker').each(function (i, el) {
+            addStaticMarker(
+                new google.maps.LatLng(
+                    $(this).attr('data-lat'),
+                    $(this).attr('data-lng')
+                ),
+                map,
+                $(this).attr('data-string'),
+                $(this).attr('data-image')
+            )
+        });
+        map.addListener('click', function() {
+            ib.close();
+        });
+
+        var selectCityCheck = false;
+
+        $("#streetAutocomplete").focus(function () {
+            //console.log(selectCityCheck);
+            selectCityCheck = false;
+            $("#streetAutocomplete").val('');
+            $('#houseNumber').val('');
+        });
+
+        $("#streetAutocomplete").blur(function () {
+            if (selectCityCheck === false) {
+                $("#streetAutocomplete").val('');
+            }
+            //console.log(selectCityCheck);
+        });
+
+
+        // JQuery autocomplete
+        function jQautocomplete(arr) {
+            $('#streetAutocomplete').autocomplete({
+                response: function(event, ui) { // Check if autocomplete found match
+                    if (ui.content.length == 0) {
+                        noDataBase = true;
+                    } else {
+                        noDataBase = false;
+                    }
+                },
+                source: function(request, response) {
+                    var results = $.ui.autocomplete.filter(arr, request.term);
+                    response(results.slice(0, 10));
+                },
+                select: function (event, ui) {
+                    selectCityCheck = true;
+                }
+            });
+        }
+
+
+        // Change city
+        $('select[name="select_city"]').on('change', function(){
+            streets = []; // remove old steets 
+            var newCity = $(this).val();
+            if(newCity == ''){
+                newCity = 'Львів';
+            }
+
+            $('#streetAutocomplete').val('');
+            $("#houseNumber").val('');
+
+            for ( var i = 0; i < AllStreets[newCity].length; i++ ) { // add new streets
+                streets.push(AllStreets[newCity][i].name);
+            }
+
+            jQautocomplete(streets);
+        });
+
+
+        // clear address fields and marker inside cabinet address form
+        $(document).on('click', '.js-clear-address-fields', function() {
+            $('input[name="type_address"]').val('');
+            $('input[name="street"]').val('');
+            $('input[name="number-building"]').val('');
+            $('input[name="number-apartment"]').val('');
+
+            for( let i=0; i < markers.length; i++ ){ // Remove old marker
+                markers[i].setMap(null);
+            }
+        });
+
+
+    }
+
+    // Step 3
+    function checkDeliveryZone(newLocation, currentPrice, redZonePrice, yellowZonePrice, greenZonePrice, minPriceGreen, minPriceYellow, minPriceRed, invisibleZonePrice) {
+
+        if ( google.maps.geometry.poly.containsLocation(newLocation, invisibleZone) === true ) { // Check if invisibleZone
+            //console.log("you are in invisibleZone");
+            $('.order-wrap .main-order-button').removeClass('disabled');
+        }else {
+            $('.order-wrap .main-order-button').addClass('disabled');
+            if( $('[data-rel="checkout-info-popup"]').length ){
+                _functions.openPopup('.popup-content[data-rel="checkout-info-popup"]');
+                $('input[name="street"]').val('');
+                $('input[name="house"]').val('');
+            }
+            // console.log("you are out invisibleZone");
+        }
+
+        if( otherMap ){
+            if ( google.maps.geometry.poly.containsLocation(newLocation, otherGreenZone) === true ) { // Check if order price same or over greenZone price delivery
+                
+                $('#map').attr('data-current-zone', $('#map').data('green-zone'));
+                $('#map').attr('data-current-zone-type', 'green');
+                $('#map').attr('data-current-nomin-delivery-price', 0);
+                $('.deliveryWarning .errorMsg.lowOrder b, .js-zone-min-price').html(minPriceGreen);
+                $('.deliveryWarning .errorMsg.lowOrderDelivery  b, .js-zone-min-delivery-price').html(greenZonePrice);
+                
+                if($('.all-product-price').length && currentPrice < minPriceGreen){
+                    step4Func();
+                } else if ( $('.all-product-price').length && currentPrice >= greenZonePrice ) {
+                    step3 = true;
+                    step3Func(step3);
+                } else {
+                    $('#map').attr('data-current-nomin-delivery-price', $('#map').data('green-zone-nomin-delivery-price'));
+                    step3 = false;
+                    step3Func(step3);
+                }
+            }else { // No delivery area
+                $('#map').attr('data-current-nomin-delivery-price', 0);
+                $('#map').attr('data-current-zone-type', 'outside');
+                step2 = false;
+                step3 = false;
+                smoothZoomMap(map, 11);
+
+
+                $('.order-button, .main-order-button').addClass('disabled');
+                $('.deliveryWarning .errorMsg.empty-address').slideUp(350);
+                $('.deliveryWarning .errorMsg.empty-house').slideUp(350);
+                $('.deliveryWarning .errorMsg.lowOrder').slideUp(350);
+                $('.deliveryWarning .errorMsg.lowOrderDelivery').slideUp(350);
+                $('.deliveryWarning .errorMsg.noDelivery').slideDown(350);
+
+                $('.checkout-map #not-delivery').slideDown(350);
+                // $('.price-wrapp .price-delivery').slideDown(350);
+                // $('.save-address').addClass('disabled');
+                $('.deliveryWarning .errorMsg.outsideOfZones').slideDown(350);
+                $('.save-address').addClass('disabled');
+            }
+        } else {
+
+            if ( google.maps.geometry.poly.containsLocation(newLocation, greenZone) === true) { // Check if order price same or over greenZone price delivery
+                
+                $('#map').attr('data-current-zone', $('#map').data('green-zone'));
+                $('#map').attr('data-current-zone-type', 'green');
+                $('#map').attr('data-current-nomin-delivery-price', 0);
+                $('.deliveryWarning .errorMsg.lowOrder b, .js-zone-min-price').html(minPriceGreen);
+                $('.deliveryWarning .errorMsg.lowOrderDelivery  b, .js-zone-min-delivery-price').html(greenZonePrice);
+                
+                if($('.all-product-price').length && currentPrice < minPriceGreen){
+                    step4Func();
+                } else if ( $('.all-product-price').length && currentPrice >= greenZonePrice ) {
+                    step3 = true;
+                    step3Func(step3);
+                } else {
+                    $('#map').attr('data-current-nomin-delivery-price', $('#map').data('green-zone-nomin-delivery-price'));
+                    step3 = false;
+                    step3Func(step3);
+                }
+            }else { // No delivery area
+                $('#map').attr('data-current-nomin-delivery-price', 0);
+                $('#map').attr('data-current-zone-type', 'outside');
+                step2 = false;
+                step3 = false;
+                smoothZoomMap(map, 11);
+
+
+                $('.order-button, .main-order-button').addClass('disabled');
+                $('.deliveryWarning .errorMsg.empty-address').slideUp(350);
+                $('.deliveryWarning .errorMsg.empty-house').slideUp(350);
+                $('.deliveryWarning .errorMsg.lowOrder').slideUp(350);
+                $('.deliveryWarning .errorMsg.lowOrderDelivery').slideUp(350);
+                $('.deliveryWarning .errorMsg.noDelivery').slideDown(350);
+
+                $('.checkout-map #not-delivery').slideDown(350);
+                // $('.price-wrapp .price-delivery').slideDown(350);
+                // $('.save-address').addClass('disabled');
+                $('.deliveryWarning .errorMsg.outsideOfZones').slideDown(350);
+                $('.save-address').addClass('disabled');
+            }
+        }
+        
+    }
+
+    // Step 2
+    function address(latlng) {
+        let newLocation = latlng,
+            currentPrice = +$('.all-product-price .all-product-price-el').attr('data-total'),
+            // currentPrice = +$('.all-product-price .all-product-price-el').attr('data-total') - +$('#map').attr('data-current-nomin-delivery-price'),
+            redZonePrice = +$('#map').data('red-zone'),
+            yellowZonePrice = +$('#map').data('yellow-zone'),
+            greenZonePrice = +$('#map').data('green-zone'),
+            minPriceGreen = +$('#map').data('default-green-zone'),
+            minPriceYellow = +$('#map').data('default-yellow-zone'),
+            minPriceRed = +$('#map').data('default-red-zone'),
+            invisibleZonePrice = +$('#map').data('invisible-zone');
+
+
+        // Start step 3
+
+        if ($('.things').length) {
+            const thingsPrice = +$('#things-count').val() * +$('.things').attr('data-price');
+            currentPrice += thingsPrice;
+
+        }
+
+        if ( step1 && step2 ) {
+            for( let i=0; i < markers.length; i++ ){ // Remove old marker
+                markers[i].setMap(null);
+            }
+            smoothZoomMap(map, 15);
+            addMarker(newLocation);
+            checkDeliveryZone(newLocation, currentPrice, redZonePrice, yellowZonePrice, greenZonePrice, minPriceGreen, minPriceYellow, minPriceRed, invisibleZonePrice);
+        }
+    }
+
+
+    //Step 1
+    GeoLocation.googleMapCoordinates = function () {
+        if ($('#selfDelivery').is(':checked')) {
+            return;
+        }
+
+        var select_city = '';
+        var select_city = $('select[name="select_city"] option:selected').text();
+        // console.log(select_city);
+        if(select_city == ''){
+            select_city = 'Львів';
+        }
+
+
+        //var selectСity = $('.SumoSelect.sumo_select_city select').val()
+
+        //console.log('selectСity ', selectСity)
+
+        //let streetAddress = $('#streetAutocomplete').val()  + ' ' + $('#houseNumber').val() + ' ' + select_city;
+        let streetAddress = select_city + ' ' + $('#streetAutocomplete').val()  + ' вул. ' + $('#houseNumber').val();
+        
+        // console.log('streetAddress ', streetAddress);
+
+        let geocoder = new google.maps.Geocoder();
+
+        geocoder.geocode({"address":streetAddress }, function(results, status) {
+            if (status == google.maps.GeocoderStatus.OK) {
+                let latlng = new google.maps.LatLng(results[0].geometry.location.lat(), results[0].geometry.location.lng());
+                $('.deliveryWarning .errorMsg.noData').slideUp(350);
+                $('#pay2 input').closest('.radiobox-item').find('span').css({'opacity': '1'});
+                $('#pay2 input').attr('disabled', false);
+
+                step2 = true;
+                step2Func(step2);
+
+                address(latlng); // start next step
+
+            } else {
+                step2 = false;
+                step2Func(step2);
+            }
+        });
+    };
+
+
+    // Step 1 function
+    function step1Func(stepBoolean) {
+        if (stepBoolean) {
+            $('#streetAutocomplete, #houseNumber').removeClass('invalid');
+            $('.deliveryWarning .errorMsg.empty-address').slideUp(350);
+        } else {
+            $('#streetAutocomplete, #houseNumber').addClass('invalid');
+            $('.deliveryWarning .errorMsg.empty-house').slideUp(350);
+            $('.deliveryWarning .errorMsg.lowOrder').slideUp(350);
+            $('.deliveryWarning .errorMsg.lowOrderDelivery').slideUp(350);
+            $('.cart-wrapper .minimum-order').slideUp(350);
+            $('.deliveryWarning .errorMsg.noDelivery').slideUp(350);
+            $('.deliveryWarning .errorMsg.empty-address').slideDown(350);
+            $('.checkout-map #not-delivery').slideUp(350);
+            $('.price-wrapp .price-delivery').slideUp(0);
+
+            resetMap();
+        }
+    }
+
+    // Step 2 function
+    function step2Func(stepBoolean) {
+        if (stepBoolean) {
+            $('#mapStreet').removeClass('invalid');
+            $('.deliveryWarning .errorMsg.empty-house').slideUp(350);
+            $('.main-order-button').removeClass('disabled');
+
+            $('.save-address').removeClass('disabled');
+            $('.deliveryWarning .errorMsg.outsideOfZones').slideUp(350);
+
+            smoothZoomMap(map, 15);
+        } else {
+            $('#mapStreet').addClass('invalid');
+            $('.deliveryWarning .errorMsg.empty-address').slideUp(350);
+            $('.deliveryWarning .errorMsg.lowOrder').slideUp(350);
+            $('.deliveryWarning .errorMsg.lowOrderDelivery').slideUp(350);
+            $('.cart-wrapper .minimum-order').slideUp(350);
+            $('.deliveryWarning .errorMsg.noDelivery').slideUp(350);
+            $('.deliveryWarning .errorMsg.empty-house').slideDown(350);
+            $('.main-order-button').addClass('disabled');
+
+            $('.checkout-map #not-delivery').slideUp(350);
+            $('.price-wrapp .price-delivery').slideUp(0);
+            $('.save-address').addClass('disabled');
+        }
+        // resetMap();
+    }
+
+    // Step 3 function
+    function step3Func(stepBoolean) {
+        if (stepBoolean) {
+            
+            $('#mapStreet').removeClass('invalid');
+            $('.main-order-button').removeClass('disabled');
+            $('.deliveryWarning .errorMsg.empty-address').slideUp(350);
+            $('.deliveryWarning .errorMsg.empty-house').slideUp(350);
+            $('.deliveryWarning .errorMsg.noDelivery').slideUp(350);
+            $('.deliveryWarning .errorMsg.lowOrder').slideUp(350);
+            $('.deliveryWarning .errorMsg.lowOrderDelivery').slideUp(350);
+            $('.cart-wrapper .minimum-order').slideUp(350);
+            $('.checkout-map #not-delivery').slideUp(350);
+            $('.price-wrapp .price-delivery').slideUp(0);
+            $('#all-products-delivery').text(0);
+
+            $('.save-address').addClass('disabled');
+            var totalSpan = $('.all-product-price-el');
+            var delivery = parseFloat($('#all-products-delivery').text());
+            var total = parseFloat(totalSpan.attr('data-total'));
+            var newTotal = delivery + total;
+            //console.log(delivery);
+            //console.log(total);
+            $('.all-product-price-el').text(newTotal);
+            smoothZoomMap(map, 15);
+        }
+        else {
+        
+            if (+$('#map').attr('data-current-nomin-delivery-price') > 0) {
+                $('#mapStreet').removeClass('invalid');
+                $('.main-order-button').removeClass('disabled');
+                $('.deliveryWarning .errorMsg.empty-address').slideUp(350);
+                $('.deliveryWarning .errorMsg.empty-house').slideUp(350);
+                $('.deliveryWarning .errorMsg.noDelivery').slideUp(350);
+                $('.deliveryWarning .errorMsg.lowOrder').slideUp(350);
+                $('.cart-wrapper .minimum-order').slideUp(350);
+                $('.checkout-map #not-delivery').slideUp(350);
+
+                $('.deliveryWarning .errorMsg.lowOrderDelivery').slideDown(350);
+                $('.main-order-button').removeClass('disabled');
+
+
+                $('.price-wrapp .price-delivery').slideDown(0);
+                $('#all-products-delivery').text($('#map').attr('data-current-nomin-delivery-price'));
+
+                var totalSpan = $('.all-product-price-el');
+                var delivery = parseFloat($('#all-products-delivery').text());
+                var total = parseFloat(totalSpan.attr('data-total'));
+                var newTotal = delivery + total;
+                $('.all-product-price-el').text(newTotal);
+            } else {
+                //console.log('67890');
+                $('#mapStreet').addClass('invalid');
+                $('.main-order-button').addClass('disabled');
+                $('.deliveryWarning .errorMsg.empty-address').slideUp(350);
+                $('.deliveryWarning .errorMsg.empty-house').slideUp(350);
+                $('.deliveryWarning .errorMsg.noDelivery').slideUp(350);
+                $('.deliveryWarning .errorMsg.lowOrderDelivery').slideUp(350);
+                $('.main-order-button').removeClass('disabled');
+
+                $('.deliveryWarning .errorMsg.lowOrder').slideDown(350);
+                $('.cart-wrapper .minimum-order').slideDown(350);
+                $('.checkout-map #not-delivery').slideUp(350);
+                $('.price-wrapp .price-delivery').slideUp(0);
+                $('.main-order-button').addClass('disabled');
+
+                // $('.save-address').removeClass('disabled');
+                $('.save-address').removeClass('disabled');
+            }
+
+            smoothZoomMap(map, 11);
+        }
+    }
+
+
+    function step4Func(stepBoolean) {
+        $('.deliveryWarning .errorMsg.lowOrder').slideDown(350);
+        $('.main-order-button').addClass('disabled');  
+    }
+
+    // Reset markers and map zoom
+    function resetMap(){
+
+        if ( markers.length){
+            for( let i=0; i < markers.length; i++ ){
+                markers[i].setMap(null);
+            }
+            map.panTo(myLatlng);
+            smoothZoomMap(map, 11);
+        }
+    }
+
+    // Smooth map zoom
+    function smoothZoomMap(map, targetZoom){
+        let currentZoom = arguments[2] || map.getZoom();
+        if (currentZoom != targetZoom){
+            google.maps.event.addListenerOnce(map, 'zoom_changed', function (event) {
+                smoothZoomMap(map, targetZoom, currentZoom + (targetZoom > currentZoom ? 1 : -1));
+            });
+            setTimeout(function(){ map.setZoom(currentZoom) }, 100);
+        }
+    }
+
+    // Start steps
+    _functions.startSteps = function() {
+        if ( $('#streetAutocomplete').val() && $('#houseNumber').val()) {
+            if($('#streetAutocomplete').val()){
+                $('#streetAutocomplete').removeClass('invalid');
+            }
+            if($('#houseNumber').val()){
+                $('#houseNumber').removeClass('invalid');
+            }
+            step1 = true;
+            GeoLocation.googleMapCoordinates(); // step 1
+            // if ($(window).width() < 1500 )$('html, body').animate({scrollTop: $('#map').offset().top - 90}, 800);
+        } else {
+            step1 = false;
+        }
+    }
+
+    function debounce(func, wait, immediate) {
+        var timeout;
+        return function () {
+            var context = this, args = arguments;
+            var later = function () {
+                timeout = null;
+                if (!immediate) func.apply(context, args);
+            };
+            var callNow = immediate && !timeout;
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+            if (callNow) func.apply(context, args);
+        };
+    }
+
+    //START steps
+    $("#streetAutocomplete").change(function () {
+        _functions.startSteps();
+    });
+
+    $('#houseNumber').keyup(debounce(function () {
+        if ($('#streetAutocomplete').val().trim() !== '') {
+            _functions.startSteps();
+        }
+    }, 200));
+
+    // $("#houseNumber").on('blur', function () {
+    //     if ($(this).val().trim() === '') {
+    //         $('.main-order-button').addClass('disabled');
+    //     }
+    // });
+
+    $("#streetAutocomplete, #houseNumber").focus(function(e) {
+        if ( e.which != 13 && $("#houseNumber").length ) return false;
+        _functions.startSteps();
+    });
+
+    // Change city
+    // $('#city').on('change', function(){
+    //     streets = []; // remove old steets
+    //     let newCity = $(this).val();
+    //
+    //     $('#streetAutocomplete').val('');
+    //     $("#houseNumber").val('');
+
+        // for ( let i = 0; i < AllStreets[newCity].length; i++ ) { // add new streets
+        //     streets.push(AllStreets[newCity][i].name);
+        // }
+
+        /*        $('.deliveryWarning .errorMsg.empty-house').slideUp(350);
+                $('.deliveryWarning .errorMsg.lowOrder').slideUp(350);
+                $('.deliveryWarning .errorMsg.noDelivery').slideUp(350);
+                $('.deliveryWarning .errorMsg.empty-address').slideUp(350);
+                $('.deliveryWarning .errorMsg.noData').slideUp(350);
+                $('.checkout-map #not-delivery').slideUp(350);
+                $('.price-wrapp .price-delivery').slideUp(350);*/
+
+    // });
+
+    // Mobile button search
+    $('#StartSearch').on('click', function() {
+        if ( $('#streetAutocomplete').val() && $('#houseNumber').val()) {
+            if($('#streetAutocomplete').val()){
+                $('#streetAutocomplete').removeClass('invalid');
+            }
+            if($('#houseNumber').val()){
+                $('#houseNumber').removeClass('invalid');
+            }
+            step1 = true;
+            step1Func(step1);
+            GeoLocation.googleMapCoordinates(); // step 1
+        } else {
+            step1 = false;
+            step1Func(step1);
+        }
+    });
+
+    // change price after click button
+    // $('.checkout-products .thumb-input-number button').on('click',function(){
+    //     if ( $('#streetAutocomplete').val() && $('#houseNumber').val()) {
+    //         _functions.startSteps();
+    //     }
+    // });
+
+    // change price after remove product
+    // $('.checkout-products .btn-close').on('click',function(){
+    //     if ( $('#streetAutocomplete').val() && $('#houseNumber').val()) {
+    //         _functions.startSteps();
+    //     }
+    // });
+
+
+    //new
+    $('input[name=delivery_method]').on('change', function(e) {
+        // if ($(this).val() === 'local_pickup') {
+        if ($(this).val() !== 'courier') {
+            $('.main-order-button').removeClass('disabled');
+            $('.deliveryWarning .errorMsg.noDelivery').slideUp(350);
+            $('.checkout-map #not-delivery').slideUp(350);
+            $('.price-wrapp .price-delivery').slideUp(0);
+            $('.deliveryWarning .errorMsg.lowOrderDelivery').slideUp(350);
+            $('.deliveryWarning .errorMsg.lowOrder').slideUp(350);
+
+            if ($(this).val() === 'local_pickup') {
+                $('.price-wrapp .price-discount').slideDown(0);
+            } else {
+                $('.price-wrapp .price-discount').slideUp(0);
+            }
+        // } else if ($(this).val() === 'courier') {
+        } else {
+            if ( $('#streetAutocomplete').val() && $('#houseNumber').val()) {
+                _functions.startSteps();
+            }
+            $('.price-wrapp .price-discount').slideUp(0);
+            // $('.main-order-button').addClass('disabled');
+        }
+    });
+
+    // $('#driveDelivery').on('click', function() {
+    //     if ( $('#streetAutocomplete').val() && $('#houseNumber').val()) {
+    //         _functions.startSteps();
+    //     }
+    //     $('.price-wrapp .price-discount').slideUp();
+    //     $('.main-order-button').addClass('disabled');
+    // });
+
+    // cabinet edit address
+    $(document).on('click', '.js-edit-address', function (e) {
+        let $this = $(this),
+            $adressItem = $this.closest('.js-address-item'),
+            name_address        = $adressItem.find('.js-address-name').text(),
+            street              = $adressItem.find('.js-street').text(),
+            number_building     = $adressItem.find('.js-house').text(),
+            number_apartment    = $adressItem.find('.js-apartment').text(),
+            number_entrance    = $adressItem.find('.js-entrance').text(),
+            number_floor    = $adressItem.find('.js-floor').text(),
+            number_intercom    = $adressItem.find('.js-intercom').text(),
+            index_edit = $adressItem.index();
+
+        $('select[name="select_city"]')[0].sumo.selectItem(name_address);
+        $('input[name="type_address"]').val(name_address);
+        $('input[name="street"]').val(street);
+        $('input[name="number-building"]').val(number_building);
+        $('input[name="number-apartment"]').val(number_apartment);
+        $('input[name="number-entrance"]').val(number_entrance);
+        $('input[name="number-floor"]').val(number_floor);
+        $('input[name="number-intercom"]').val(number_intercom);
+
+        $('#houseNumber').trigger('keyup');
+    });
+
+    // Load map
+    if ($('#map').length) {
+        setTimeout(function(){
+            initialize();
+            if ($('#houseNumber').length && $('#streetAutocomplete').length) {
+                if ($('input[name="delivery_method"]').val() === 'courier' && $('#houseNumber').val().trim() !== '' && $('#streetAutocomplete').val().trim() !== '') {
+                    $('#houseNumber').trigger('keyup');
+                }
+            }
+            }, 50);
+    }
+
+    // SPEC PRODUCTS
+    if( $('#spec-products').length ){
+        setTimeout(function(){
+            if( $('.popup-content.active').length ){
+                $('.popup-content.active').each(function(){
+                    $(this).find('.layer-close').on('click', function(){
+                        setTimeout(function(){
+                            _functions.openPopup('#spec-products');
+                        }, 1000);
+                    });
+                    $(this).find('.btn-close').on('click', function(){
+                        setTimeout(function(){
+                            _functions.openPopup('#spec-products');
+                        }, 1000);
+                    });
+                })
+            }else{
+                _functions.openPopup('#spec-products');
+            }
+        }, 1500);
+    }
+
+    _functions.check_spec_products = function(){
+        if( !$(document).find('.spec-product').length ){
+            $('.checkout-section').removeClass('other-map');
+            initialize();
+            setTimeout(function(){
+                _functions.calculateTotalCheckout();
+            }, 1000);
+        }
+    }
+
+});
